@@ -9,7 +9,7 @@ import { normalizeMatch } from './data/normalizeMatch.js';
 import { enrichMatchesWithCriteria } from './logic/matchCriteria.js';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('matches');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [rawData, setRawData] = useState(null);
   const [loadState, setLoadState] = useState({ loading: true, error: '' });
 
@@ -30,17 +30,22 @@ export default function App() {
     return () => { cancelled = true; };
   }, []);
 
-  const matches = useMemo(() => {
-    const predictions = rawData?.predictions || [];
-    const normalized = predictions.map(normalizeMatch).filter(Boolean);
-    return enrichMatchesWithCriteria(normalized, rawData?.modelBenchmarks || {});
+  const matchSource = useMemo(() => {
+    const predictions = Array.isArray(rawData?.predictions) ? rawData.predictions : [];
+    if (predictions.length) return predictions;
+    return Array.isArray(rawData?.recommendationLog) ? rawData.recommendationLog : [];
   }, [rawData]);
 
+  const matches = useMemo(() => {
+    const normalized = matchSource.map(normalizeMatch).filter(Boolean);
+    return enrichMatchesWithCriteria(normalized, rawData?.modelBenchmarks || {});
+  }, [rawData, matchSource]);
+
   const appMeta = useMemo(() => ({
-    predictions: rawData?.predictions?.length || 0,
+    predictions: matchSource.length,
     eligible: matches.filter((m) => m.analysisState === 'ELIGIBLE').length,
     updatedAt: rawData?.fullHistoryMeta?.updated_at || rawData?.proIntelligence?.updated_at || null
-  }), [rawData, matches]);
+  }), [rawData, matches, matchSource]);
 
   return (
     <div className="app-shell">
